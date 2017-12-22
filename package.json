@@ -1,0 +1,20 @@
+{
+  "name": "play-song",
+  "version": "1.0.0",
+  "description": "",
+  "main": "play-song.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "axelinternet",
+  "license": "ISC",
+  "dependencies": {
+    "node-fetch": "^1.7.3",
+    "request": "^2.83.0"
+  },
+  "devDependencies": {
+    "console-error": "0.0.4",
+    "console-info": "0.0.5",
+    "console-warn": "0.0.4"
+  }
+}
