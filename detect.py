@@ -1,89 +1,48 @@
-import sys
-from aubio import source, pitch
-import pyaudio
-import wave
+import alsaaudio
+import numpy as np
+import aubio
 
-# SETUP
-CHUNK = 1024
-FORMAT = pyaudio.paInt16
-CHANNELS = 2
-RATE = 44100
-WAVE_OUTPUT_FILENAME = "output.wav"
+def listen():
+    # constants
+    samplerate = 44100
+    win_s = 2048
+    hop_s = win_s // 2
+    framesize = hop_s
 
-# TEST SETUP
-WAV_FILE = 'data/440_16.wav'
+    # set up audio input
+    recorder = alsaaudio.PCM(type=alsaaudio.PCM_CAPTURE)
+    recorder.setperiodsize(framesize)
+    recorder.setrate(samplerate)
+    recorder.setformat(alsaaudio.PCM_FORMAT_FLOAT_LE)
+    recorder.setchannels(1)
 
-def capture_audio_sample(seconds):
-    """
-        Listens to audio input, takes a sample of a specific length and returns it as an
-            array of samples
-    """
+    # create aubio pitch detection (first argument is method, "default" is
+    # "yinfft", can also be "yin", "mcomb", fcomb", "schmitt").
+    pitcher = aubio.pitch("default", win_s, hop_s, samplerate)
+    # set output unit (can be 'midi', 'cent', 'Hz', ...)
+    pitcher.set_unit("Hz")
+    # ignore frames under this level (dB)
+    pitcher.set_silence(-40)
 
-    p = pyaudio.PyAudio()
+    print("Starting to listen, press Ctrl+C to stop")
 
-    stream = p.open(format=FORMAT,
-        channels=CHANNELS,
-        rate=RATE,
-        input=True,
-        frames_per_buffer=CHUNK)
 
-    print('Started recording')
-
-    frames = []
-
-    for i in range(0, int(RATE / CHUNK * seconds)):
-        data = stream.read(CHUNK)
-        frames.append(data)
-
-    print('Stopped recording')
-
-    print('Godtycklig frame:', frames[2])
-    print('\n\n')
-    stream.stop_stream()
-    stream.close()
-    p.terminate()
-    wf = wave.open(WAVE_OUTPUT_FILENAME, 'wb')
-    wf.setnchannels(CHANNELS)
-    wf.setsampwidth(p.get_sample_size(FORMAT))
-    wf.setframerate(RATE)
-    wf.writeframes(b''.join(frames))
-    wf.close()
-    return frames
-
-def detect_pitch(filename):
-    """
-        Returns detected pitches and averages from a wav file. Should be revamped to take an
-        array of samples instead of loading a file itself.
-    """
-    downsample = 1
-    samplerate = 44100 // downsample
-    win_s = 4096 // downsample # fft size
-    hop_s = 512  // downsample # hop size
-    s = source(filename, samplerate, hop_s)
-    samplerate = s.samplerate
-    tolerance = 0.8
-    pitch_o = pitch("yin", win_s, hop_s, samplerate)
-    pitch_o.set_unit("midi")
-    pitch_o.set_tolerance(tolerance)
-    pitches = []
-    confidences = []
+    # main loop
     while True:
-        samples, read = s()
-        current_pitch = pitch_o(samples)[0]
-        current_pitch = int(round(current_pitch))
-        confidence = pitch_o.get_confidence()
-        #if confidence < 0.8: current_pitch = 0.
-        #print("%i %f" % (current_pitch, confidence))
-        pitches += [current_pitch]
-        confidences += [confidence]
-        if read < hop_s: break
-
-    avg_pitch = round(sum(pitches) / float(len(pitches)))
-    avg_confidence = sum(confidences) / float(len(confidences))
-    return avg_pitch, avg_confidence, pitches,confidences
+        try:
+            # read data from audio input
+            _, data = recorder.read()
+            # convert data to aubio float samples
+            samples = np.fromstring(data, dtype=aubio.float_type)
+            # pitch of current frame
+            freq = pitcher(samples)[0]
+            # compute energy of current block
+            energy = np.sum(samples**2)/len(samples)
+            # do something with the results
+            print("{:10.4f} {:10.4f}".format(freq,energy))
+        except KeyboardInterrupt:
+            print("Ctrl+C pressed, exiting")
+            break
 
 if __name__ == '__main__':
-    samples = capture_audio_sample(1)
-    #a,b,c,d = detect_pitch('out.WAV')
-    #print(c)
-    #print(samples)
+    listen()

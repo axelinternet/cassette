@@ -2,6 +2,7 @@
 web-api-auth-examples/
 node_modules/
 env/
+tokens.json
 
 *.pyc
 *.wav
