@@ -18,10 +18,9 @@ def send_detected_frequency(frequency):
     """
     try: 
         r.get(HOST + '?frequency=' + str(frequency))
-        if r.status_code != 200:
-            raise NotImplementedError("No functionality to handle other status codes than 200")
     except r.exceptions.ConnectionError:
         print('\033[91m Could not connect to host:\033[39m \t{} '.format(HOST))
+        
 def listen():
     """ 
         Listens to default audio input and detects the frequency. 
@@ -71,12 +70,12 @@ def listen():
             i = 0 if i == 10 else i
             # 
             new_average = sum(latest_freqs) // 10
-            if abs(new_average - old_average) > 20:
+            if abs(new_average - old_average) > 20 and new_average > 300:
                 if time.time() - t > 2: # Add a timeout
-                    send_detected_frequency(old_average)
                     t = time.time()
                     old_average = new_average
                     print(old_average)
+                    send_detected_frequency(old_average)
         except KeyboardInterrupt:
             print("Ctrl+C pressed, exiting")
             break

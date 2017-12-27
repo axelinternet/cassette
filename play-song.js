@@ -7,6 +7,7 @@ const fetch = require('node-fetch')
 const request = require('request')
 const fs = require('fs')
 const util = require('util')
+
 const AppData = require('./keys.secret')
 /*
 	TODO: 
@@ -26,7 +27,8 @@ const tapeLibrary = {
 	tapes: [
 		{
 			mer_data: 'get this from API later',
-			spotify_uri: 'spotify:album:3AZThW5w8QRSZ0SRhiHARd'
+			spotify_uri: 'spotify:album:3AZThW5w8QRSZ0SRhiHARd',
+			frequency: 440
 		}
 	]
 }
@@ -125,41 +127,55 @@ const makeSimpleQuery = (url) =>  {
 	})
 }
 
-playSong = (spotify_uri) => {
-	AppData.tokens = loadTokens()
-	makeSimpleQuery('https://api.spotify.com/v1/me/player/devices')
-		.then(data => {
-			return JSON.parse(data).devices
-		})
-		.then(devices => {
-			return new Promise((resolve, reject) => {
-				const query = {
-					url: 	'https://api.spotify.com/v1/me/player/play',
-					headers: {
-						'Authorization': 'Bearer ' + AppData.tokens.access_token
-					},
-					body: {
-					  "context_uri": spotify_uri
-					},
-					json: true
-				}
+const frequencyToURI = (frequency) => {
+	// Find the closest frequency of 
+	for (const tape of tapeLibrary.tapes) {
+	 	return Math.abs(tape.frequency - frequency) < 40 ? tape.spotify_uri : null 
+	}
 
-				request.put(query, function(error, response, body) {
-					console.info('Sending query')
-					if (!error && response.statusCode == 200 || !error && response.statusCode == 204 ) {
-						console.info('Status: ', response.statusCode)
-						resolve(body)
-				  } else if (response.statusCode == 403){
-				  	resolve(body)
-				  } else {
-				  	reject([error, response.statusCode, body])
-				  }
+}
+
+const playSong = (frequency) => {
+	// Frequency to spotify_uri
+	console.log('Detected ', frequency)
+	const spotify_uri = frequencyToURI(frequency)
+	if (spotify_uri) {
+		// Make queries to spotify
+		AppData.tokens = loadTokens()
+		makeSimpleQuery('https://api.spotify.com/v1/me/player/devices')
+			.then(data => {
+				return JSON.parse(data).devices
+			})
+			.then(devices => {
+				return new Promise((resolve, reject) => {
+					const query = {
+						url: 	'https://api.spotify.com/v1/me/player/play',
+						headers: {
+							'Authorization': 'Bearer ' + AppData.tokens.access_token
+						},
+						body: {
+						  "context_uri": spotify_uri
+						},
+						json: true
+					}
+
+					request.put(query, function(error, response, body) {
+						console.info('Sending query')
+						if (!error && response.statusCode == 200 || !error && response.statusCode == 204 ) {
+							console.info('Status: ', response.statusCode)
+							resolve(body)
+					  } else if (response.statusCode == 403){
+					  	resolve(body)
+					  } else {
+					  	reject([error, response.statusCode, body])
+					  }
+					})
 				})
 			})
-		})
-		.catch((err) => {
-			err.map(message => console.error(message))
-		})
+			.catch((err) => {
+				err.map(message => console.error(message))
+			})
+	}
 }
 
 const setup = () => {
@@ -202,9 +218,8 @@ const parseParams = (url) => {
 //playSong(song)
 //refreshToken()
 //setup()
-const run = () => http.createServer((request, response) => {
-	const stateKey = generateStateKey()
-	console.info('StateKey', stateKey)
+const run = (stateKey) => http.createServer((request, response) => {
+	console.info('Ready to go')
   const { headers, method, url } = request
   let body = []
   request.on('error', (err) => {
@@ -218,15 +233,19 @@ const run = () => http.createServer((request, response) => {
 
     body = Buffer.concat(body).toString()
     params = parseParams(request.url)
-    try {
-			playSong(params.spotify_uri)
-    } catch(e) {
-    	console.error("Invalid request, no spotify_uri provided");
-    }
+
     response.writeHead(200, {'Content-Type': 'application/json'})
 
     response.end(body)
+    try {
+			playSong(params.frequency)
+    } catch(e) {
+    	console.error("Invalid request:", e);
+    }
   })
 }).listen(8080)
 
-run()
+// MAIN
+const stateKey = generateStateKey()
+//console.info('StateKey', stateKey)
+run(stateKey)
