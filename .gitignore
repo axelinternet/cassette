@@ -1,6 +1,12 @@
 *.secret
 web-api-auth-examples/
 node_modules/
+env/
+
+*.pyc
+*.wav
+*.WAV
+*.mp3
 
 # Logs
 logs

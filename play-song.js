@@ -10,9 +10,8 @@ const util = require('util')
 const AppData = require('./keys.secret')
 /*
 	TODO: 
-		- Spela upp en låt från tapeLibrary
 		- Fyll tapeLibrary med lite Sample Data
-		- flytta keys till secrets fil
+		- Build resfresh function so it refreshes if possible when the key has expired. 
 	Bygger hela det här som en enkel node app bara. Skickar enkla get mellan delarna så kan man dra 
 	isär modulerna sen om det visar sig vara enklare. Den här appen skulle ju kunna ligga på en server då? Då löser man inloggningen osv enkelt också. Vart kan man hosta node? Zeit now
 */
@@ -23,6 +22,14 @@ const AppData = require('./keys.secret')
 		would be cool. Buiild this as a rest microservice and just build a super simple NUXT or next.js
 		site? 
 */ 
+const tapeLibrary = {
+	tapes: [
+		{
+			mer_data: 'get this from API later',
+			spotify_uri: 'spotify:album:3AZThW5w8QRSZ0SRhiHARd'
+		}
+	]
+}
 
 const generateStateKey = (keyLength = 8) => {
 	const allowed = 'abcdefghijklmnopqrstuvxyzABCDEFGHIJKLMNOPQRSTUVXYZ0123456789'
@@ -33,14 +40,6 @@ const generateStateKey = (keyLength = 8) => {
 	return key
 }
 
-const tapeLibrary = {
-	tapes: [
-		{
-			mer_data: 'get this from API later',
-			spotify_uri: 'spotify:album:3AZThW5w8QRSZ0SRhiHARd'
-		}
-	]
-}
 
 const loadKeys = () => {
 	const tokens = JSON.parse(fs.readFileSync('keys.secret').toString())
