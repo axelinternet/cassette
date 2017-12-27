@@ -1,8 +1,35 @@
 import alsaaudio
 import numpy as np
 import aubio
+import requests as r
+import time
+"""
+    TODO: 
+    - Send request to node host with frequency
+    - Add args for host
+"""
 
+HOST = 'http://localhost:8080/'
+
+
+def send_detected_frequency(frequency):
+    """
+        Sends detected frequency to Node backend.
+    """
+    try: 
+        r.get(HOST + '?frequency=' + str(frequency))
+        if r.status_code != 200:
+            raise NotImplementedError("No functionality to handle other status codes than 200")
+    except r.exceptions.ConnectionError:
+        print('\033[91m Could not connect to host:\033[39m \t{} '.format(HOST))
 def listen():
+    """ 
+        Listens to default audio input and detects the frequency. 
+        Keeps track of the 10 latest samples and takes an average
+        that can be sent to Node backend.
+    """
+    latest_freqs = [0,0,0,0,0,0,0,0,0,0]
+    
     # constants
     samplerate = 44100
     win_s = 2048
@@ -26,8 +53,10 @@ def listen():
 
     print("Starting to listen, press Ctrl+C to stop")
 
-
     # main loop
+    i = 0
+    old_average = 0
+    t = 0
     while True:
         try:
             # read data from audio input
@@ -36,10 +65,18 @@ def listen():
             samples = np.fromstring(data, dtype=aubio.float_type)
             # pitch of current frame
             freq = pitcher(samples)[0]
-            # compute energy of current block
-            energy = np.sum(samples**2)/len(samples)
-            # do something with the results
-            print("{:10.4f} {:10.4f}".format(freq,energy))
+            latest_freqs[i] = freq
+
+            i += 1
+            i = 0 if i == 10 else i
+            # 
+            new_average = sum(latest_freqs) // 10
+            if abs(new_average - old_average) > 20:
+                if time.time() - t > 2: # Add a timeout
+                    send_detected_frequency(old_average)
+                    t = time.time()
+                    old_average = new_average
+                    print(old_average)
         except KeyboardInterrupt:
             print("Ctrl+C pressed, exiting")
             break
