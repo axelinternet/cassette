@@ -11,24 +11,33 @@ const util = require('util')
 const AppData = require('./keys.secret')
 /*
 	TODO: 
-		- Fyll tapeLibrary med lite Sample Data
-		- Build resfresh function so it refreshes if possible when the key has expired. 
-	Bygger hela det här som en enkel node app bara. Skickar enkla get mellan delarna så kan man dra 
-	isär modulerna sen om det visar sig vara enklare. Den här appen skulle ju kunna ligga på en server då? Då löser man inloggningen osv enkelt också. Vart kan man hosta node? Zeit now
+		- Build refresh function so it refreshes if possible when the key has expired. 
+		- Build simple web interface
+		- Deploy with zeit now
 */
 
+const tapeLibrary = {
 /*  
 		Sample of how to build up tapeLibrary. This object is what will be used to keep the 
 		connection between my service and spotify. Building some sort of funky interface for this
 		would be cool. Buiild this as a rest microservice and just build a super simple NUXT or next.js
 		site? 
 */ 
-const tapeLibrary = {
 	tapes: [
 		{
 			mer_data: 'get this from API later',
 			spotify_uri: 'spotify:album:3AZThW5w8QRSZ0SRhiHARd',
 			frequency: 440
+		},
+		{
+			mer_data: 'get this from API later',
+			spotify_uri: 'spotify:album:6Y5NQ2C9Jyyi8AQnCfjkx2',
+			frequency: 740
+		},
+		{
+			mer_data: 'get this from API later',
+			spotify_uri: 'spotify:album:47nWcb5GzhgGNzJuCJgiPN',
+			frequency: 2093
 		}
 	]
 }
@@ -49,8 +58,8 @@ const loadKeys = () => {
 	return tokens
 }
 
-const getAccessToken = (code) => {
-	// Run this first with code to get inital accesstoken. 
+const initilizeServer = (code) => {
+	// Run this first with code to get inital accesstoken. Starts server on completion
 	const authOptions = {
 	  url: 'https://accounts.spotify.com/api/token',
 	  form: {
@@ -69,6 +78,9 @@ const getAccessToken = (code) => {
 		if (!error && response.statusCode == 200) {
 			console.log(body)
 			fs.writeFile('tokens.json', JSON.stringify(body), error => {error ? (console.error(error)):null})
+			// Start and run server
+			const stateKey = generateStateKey()
+			run(stateKey)
 	  } else {
 	  	console.error(error, body)
 	  } 
@@ -130,14 +142,16 @@ const makeSimpleQuery = (url) =>  {
 const frequencyToURI = (frequency) => {
 	// Find the closest frequency of 
 	for (const tape of tapeLibrary.tapes) {
-	 	return Math.abs(tape.frequency - frequency) < 40 ? tape.spotify_uri : null 
+	 	if (Math.abs(tape.frequency - frequency) < 40) {
+	 		return tape.spotify_uri
+	 	}
 	}
 
 }
 
 const playSong = (frequency) => {
 	// Frequency to spotify_uri
-	console.log('Detected ', frequency)
+	console.log('Recieved ', frequency)
 	const spotify_uri = frequencyToURI(frequency)
 	if (spotify_uri) {
 		// Make queries to spotify
@@ -185,9 +199,10 @@ const setup = () => {
 	console.info('Enter this into the browser and copy the code back: ')
 	console.log(AppData.browserStartURL)
 	process.stdin.on('data', function (text) {
-	console.log('received data:', util.inspect(text))
+		console.log('received data:', util.inspect(text))
 		AppData.code = text.replace('\n', '')
-		getAccessToken(AppData.code)
+		initilizeServer(AppData.code)
+		setInterval(refreshToken, 3500*1000)
 	})
 
 }
@@ -214,7 +229,6 @@ const parseParams = (url) => {
 					RUN SERVER & DO THINGS 
 ************************************************/ 
 
-//setup()
 //playSong(song)
 //refreshToken()
 //setup()
@@ -245,7 +259,7 @@ const run = (stateKey) => http.createServer((request, response) => {
   })
 }).listen(8080)
 
-// MAIN
-const stateKey = generateStateKey()
-//console.info('StateKey', stateKey)
-run(stateKey)
+
+//setup()
+//const stateKey = generateStateKey()
+//run(stateKey)

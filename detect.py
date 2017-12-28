@@ -5,8 +5,10 @@ import requests as r
 import time
 """
     TODO: 
-    - Send request to node host with frequency
-    - Add args for host
+    - Add args for host.
+
+    Nice to have: 
+    - Better frequency filtering. 
 """
 
 HOST = 'http://localhost:8080/'
@@ -20,7 +22,7 @@ def send_detected_frequency(frequency):
         r.get(HOST + '?frequency=' + str(frequency))
     except r.exceptions.ConnectionError:
         print('\033[91m Could not connect to host:\033[39m \t{} '.format(HOST))
-        
+
 def listen():
     """ 
         Listens to default audio input and detects the frequency. 
